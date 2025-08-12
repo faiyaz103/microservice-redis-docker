@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ProductEntity } from './entities/product.entity';
 import { Repository } from 'typeorm';
@@ -62,6 +62,27 @@ export class ProductService {
         } catch (error) {
             console.error(error);
             throw new InternalServerErrorException('Error deleting product ', error);
+        }
+    }
+
+    // update product quantity
+    async updateProductQuantity(productId: string, orderQuantity: number): Promise<void>{
+
+        const product=await this.productRepo.findOne({
+            where:{id:productId}
+        });
+
+        if(!product) throw new NotFoundException('Product not found');
+
+        if(product.quantity<orderQuantity) throw new Error('Insufficient Products');
+
+        try {
+            product.quantity-=orderQuantity;
+            await this.productRepo.save(product);
+
+        } catch (error) {
+            console.error(error);
+            throw new InternalServerErrorException('Error updating product quantity', error);
         }
     }
 }

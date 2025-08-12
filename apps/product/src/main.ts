@@ -10,7 +10,7 @@ async function bootstrap() {
         transport:Transport.REDIS,
         options:{
             host:'localhost',
-            port:3001
+            port:6379
         }
     });
     

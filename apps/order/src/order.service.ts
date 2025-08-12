@@ -1,13 +1,15 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { OrderEntity } from './entities/order.entity';
 import { Repository } from 'typeorm';
 import { CreateOrderDto } from './dto/order.dto';
+import { ClientProxy } from '@nestjs/microservices';
 
 @Injectable()
 export class OrderService {
     constructor(
-        @InjectRepository(OrderEntity) private orderRepo:Repository<OrderEntity>
+        @InjectRepository(OrderEntity) private orderRepo:Repository<OrderEntity>,
+        @Inject('PRODUCT_SERVICE') private readonly productClient:ClientProxy,
     ){};
 
     // create new Order
@@ -16,6 +18,12 @@ export class OrderService {
         try {
             const order=this.orderRepo.create(createOrderDto);
             const savedOrder=await this.orderRepo.save(order);
+
+            // emit event to product service to update quantity
+            this.productClient.emit('update-product-quantity', {
+                productId:createOrderDto.product_id,
+                quantity:createOrderDto.quantity
+            });
 
             return order;
         } catch (error) {

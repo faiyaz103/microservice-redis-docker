@@ -6,17 +6,31 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrderEntity } from './entities/order.entity';
 import { ProductEntity } from 'apps/product/src/entities/product.entity';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 
 @Module({
     imports: [
         DatabaseModule,
+
         ConfigModule.forRoot({
             isGlobal:true,
             envFilePath:'.env'
         }),
+
         TypeOrmModule.forFeature([
             OrderEntity,
             ProductEntity
+        ]),
+
+        ClientsModule.register([
+            {
+                name:'PRODUCT_SERVICE',
+                transport:Transport.REDIS,
+                options:{
+                    host:'localhost',
+                    port:6379
+                }
+            }
         ])
     ],
     controllers: [OrderController],

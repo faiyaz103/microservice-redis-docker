@@ -27,7 +27,7 @@ import { ProductEventController } from './product-event.controller';
                 transport:Transport.REDIS,
                 options:{
                     host:'localhost',
-                    port:3001
+                    port:6379
                 }
             }
         ])
