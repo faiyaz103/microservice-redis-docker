@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, InternalServerErrorException, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/product.dto';
-import { EventPattern, Payload } from '@nestjs/microservices';
+import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 
 @Controller()
 export class ProductEventController {
@@ -15,6 +15,17 @@ export class ProductEventController {
         } catch (error) {
             console.error('Error updating product quantity:', error);
             throw new InternalServerErrorException('Error updating product quantity');
+        }
+    }
+
+    @MessagePattern('get-product-quantity')
+    async handlegetProductQuantity(@Payload() data: {productId: string}): Promise<number>{
+
+        try {
+            return await this.productService.getProductQuantity(data.productId);
+        } catch (error) {
+            console.error('Error getting product quantity:', error);
+            throw new InternalServerErrorException('Error getting product quantity');
         }
     }
 }

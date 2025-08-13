@@ -7,10 +7,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrderEntity } from './entities/order.entity';
 import { ProductEntity } from 'apps/product/src/entities/product.entity';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { RedisCacheModule } from '@app/redis-cache';
 
 @Module({
     imports: [
         DatabaseModule,
+
+        RedisCacheModule,
 
         ConfigModule.forRoot({
             isGlobal:true,

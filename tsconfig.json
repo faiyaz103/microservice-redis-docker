@@ -23,6 +23,12 @@
       ],
       "@app/database/*": [
         "libs/database/src/*"
+      ],
+      "@app/redis-cache": [
+        "libs/redis-cache/src"
+      ],
+      "@app/redis-cache/*": [
+        "libs/redis-cache/src/*"
       ]
     }
   }

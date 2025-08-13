@@ -1,21 +1,53 @@
-import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, InternalServerErrorException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { OrderEntity } from './entities/order.entity';
 import { Repository } from 'typeorm';
 import { CreateOrderDto } from './dto/order.dto';
 import { ClientProxy } from '@nestjs/microservices';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { catchError, firstValueFrom, timeout } from 'rxjs';
 
 @Injectable()
 export class OrderService {
     constructor(
         @InjectRepository(OrderEntity) private orderRepo:Repository<OrderEntity>,
         @Inject('PRODUCT_SERVICE') private readonly productClient:ClientProxy,
+        @Inject(CACHE_MANAGER) private cacheManager:Cache
     ){};
 
     // create new Order
     async addOrder(createOrderDto: CreateOrderDto): Promise<CreateOrderDto>{
 
         try {
+
+            // check product quantity in the cache
+            const cacheKey=`product_qty_${createOrderDto.product_id}`;
+            let productQty=await this.cacheManager.get<Number>(cacheKey);
+
+            if(productQty!==undefined) console.log('[CACHE HIT]');
+
+            // if cache miss then fetch it from product service method
+            if(productQty===undefined){
+                // emit event to product service to get quantity
+                console.log('[CACHE MISS]');
+                
+                productQty=await firstValueFrom(
+                    this.productClient.send('get-product-quantity', {
+                        productId:createOrderDto.product_id
+                    }).pipe(
+                        timeout(5000),
+                        catchError(()=>{
+                            throw new ServiceUnavailableException('Error getting product quantity');
+                        })
+                    )
+                );
+            }
+
+            console.log('Product quantity', productQty);
+
+            if(createOrderDto.quantity > Number(productQty)) throw new BadRequestException('Not enough products');
+
             const order=this.orderRepo.create(createOrderDto);
             const savedOrder=await this.orderRepo.save(order);
 

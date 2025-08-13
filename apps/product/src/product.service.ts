@@ -1,13 +1,16 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ProductEntity } from './entities/product.entity';
 import { Repository } from 'typeorm';
 import { CreateProductDto } from './dto/product.dto';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class ProductService {
     constructor(
-        @InjectRepository(ProductEntity) private productRepo: Repository<ProductEntity>
+        @InjectRepository(ProductEntity) private productRepo: Repository<ProductEntity>,
+        @Inject(CACHE_MANAGER) private cacheManager:Cache
     ){}
     
     // create new product
@@ -16,6 +19,9 @@ export class ProductService {
         try {
             const product=this.productRepo.create(createProductDto);
             const savedProduct=await this.productRepo.save(product);
+
+            const cacheKey=`product_qty_${savedProduct.id}`;
+            await this.cacheManager.set(cacheKey,savedProduct.quantity);
 
             return product;
         } catch (error) {
@@ -56,6 +62,10 @@ export class ProductService {
     async deleteProduct(id: string): Promise<string>{
 
         try {
+
+            const cacheKey=`product_qty_${id}`;
+            await this.cacheManager.del(cacheKey);
+            
             await this.productRepo.delete(id);
 
             return 'Deleted successfully';
@@ -74,12 +84,31 @@ export class ProductService {
 
         if(!product) throw new NotFoundException('Product not found');
 
-        if(product.quantity<orderQuantity) throw new Error('Insufficient Products');
-
         try {
+
+            const cacheKey=`product_qty_${product.id}`;
+            await this.cacheManager.set(cacheKey,product.quantity-orderQuantity);
+
             product.quantity-=orderQuantity;
             await this.productRepo.save(product);
 
+        } catch (error) {
+            console.error(error);
+            throw new InternalServerErrorException('Error updating product quantity', error);
+        }
+    }
+
+    // get product quantity
+    async getProductQuantity(productId: string): Promise<number>{
+
+        try {
+            const product=await this.productRepo.findOne({
+                where:{id:productId}
+            });
+
+            if(!product) throw new NotFoundException('Product not found');
+
+            return product.quantity;
         } catch (error) {
             console.error(error);
             throw new InternalServerErrorException('Error updating product quantity', error);
